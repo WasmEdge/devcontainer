@@ -1,0 +1,16 @@
+---
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(dependabot):"
+    groups:
+      upload-and-download-artifact:
+        patterns:
+          - "*load-artifact"
+      docker:
+        patterns:
+          - "docker/*"
