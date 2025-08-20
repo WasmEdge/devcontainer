@@ -35,7 +35,7 @@ FROM base AS deps-20
 
 WORKDIR /usr/local
 
-COPY ffmpeg/install-ffmpeg-v6.0.sh .
+COPY scripts/ffmpeg/install-ffmpeg-v6.0.sh .
 RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
 ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
 ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
@@ -47,11 +47,11 @@ FROM deps-${UBUNTU_VER} AS deps-all
 
 WORKDIR /root
 
-COPY opencvmini/install-opencvmini.sh .
+COPY scripts/opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION="4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 
-COPY wasi-nn/install-pytorch.sh .
+COPY scripts/wasi-nn/install-pytorch.sh .
 ENV PYTORCH_VERSION="2.5.1"
 ENV PYTORCH_INSTALL_TO="/usr/local"
 ENV Torch_DIR="/usr/local/libtorch"
@@ -59,8 +59,8 @@ RUN [ "/bin/bash", "install-pytorch.sh"  ]
 
 ARG UBUNTU_VER
 
-COPY wasi-nn/install-openvino.sh .
-COPY wasi-nn/install-openvino-genai.sh .
+COPY scripts/wasi-nn/install-openvino.sh .
+COPY scripts/wasi-nn/install-openvino-genai.sh .
 ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
 ENV OPENVINO_VERSION="2025.0.0"
 ENV OPENVINO_YEAR="2025"
@@ -72,10 +72,10 @@ RUN [ "/bin/bash", "install-openvino-genai.sh" ]
 RUN [ "ls", "-al" ]
 RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bashrc" ]
 
-COPY wasi-nn/install-onnxruntime.sh .
+COPY scripts/wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
-COPY wasi-nn/install-chattts.sh .
+COPY scripts/wasi-nn/install-chattts.sh .
 RUN [ "/bin/bash", "install-chattts.sh" ]
 
 ### cleanup

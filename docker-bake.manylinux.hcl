@@ -1,11 +1,11 @@
 target "base" {
   dockerfile = "Dockerfile.manylinux_2_28-base"
-  context    = "./utils/docker"
+  context    = "."
 }
 
 target "plugins-base" {
-  dockerfile = "./docker/Dockerfile.manylinux_2_28-plugins-deps"
-  context    = "./utils"
+  dockerfile = "Dockerfile.manylinux_2_28-plugins-deps"
+  context    = "."
 }
 
 target "x86_64" {
