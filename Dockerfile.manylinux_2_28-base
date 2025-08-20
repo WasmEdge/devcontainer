@@ -3,7 +3,7 @@
 ARG BASE_IMAGE="quay.io/pypa/manylinux_2_28_x86_64"
 FROM ${BASE_IMAGE}
 
-ADD SHA256SUM.manylinux_2_28 /root/
+ADD scripts/SHA256SUM.manylinux_2_28 /root/
 
 # See /opt/rh/gcc-toolset-13/enable
 ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}

@@ -95,7 +95,7 @@ function "tags" {
 
 target "base" {
   dockerfile = "Dockerfile.ubuntu-base"
-  context    = "./utils/docker"
+  context    = "."
 
   matrix     = {
     ubuntu = ["20.04", "22.04", "24.04"]
@@ -109,8 +109,8 @@ target "base" {
 }
 
 target "plugins" {
-  dockerfile = "./docker/Dockerfile.ubuntu-plugins-deps"
-  context    = "./utils"
+  dockerfile = "Dockerfile.ubuntu-plugins-deps"
+  context    = "."
 
   matrix     = {
     ubuntu = ["20.04", "22.04", "24.04"]
@@ -135,7 +135,7 @@ target "final" {
   }
 
   dockerfile = "Dockerfile.ubuntu-env"
-  context    = "./utils/docker"
+  context    = "."
 
   name       = "${parent}-${no-dot(ubuntu)}-${toolchain}"
   contexts   = {
@@ -150,7 +150,7 @@ target "final" {
 
 target "cuda" {
   dockerfile = "Dockerfile.ubuntu-cuda"
-  context    = "./utils/docker"
+  context    = "."
 
   matrix     = {
     cuda = ["11.3", "12.0"]
