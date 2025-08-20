@@ -1,0 +1,93 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+ARG UBUNTU_VER=20
+FROM ${BASE_IMAGE} AS base
+
+RUN apt-get update && \
+    apt-get install -y \
+        cargo \
+        libelf-dev \
+        libomp-dev \
+        libopenblas-dev \
+        libssl-dev \
+        pkg-config \
+        unzip \
+        yasm
+
+RUN apt-get install -y \
+        libgrpc++-dev \
+        libgrpc-dev \
+        protobuf-compiler-grpc
+
+# FFmpeg 6.1 (ubuntu 24.04)
+FROM base AS deps-24
+
+RUN apt-get install -y \
+        libavcodec-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavformat-dev \
+        libavutil-dev \
+        libswresample-dev \
+        libswscale-dev
+
+# FFmpeg 6.0 (ubuntu 20.04, 22.04)
+FROM base AS deps-20
+
+WORKDIR /usr/local
+
+COPY scripts/ffmpeg/install-ffmpeg-v6.0.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
+ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+FROM deps-20 AS deps-22
+
+# Other dependencies
+FROM deps-${UBUNTU_VER} AS deps-all
+
+WORKDIR /root
+
+COPY scripts/opencvmini/install-opencvmini.sh .
+ENV OPENCV_VERSION="4.8.0"
+RUN [ "/bin/bash", "install-opencvmini.sh" ]
+
+COPY scripts/wasi-nn/install-pytorch.sh .
+ENV PYTORCH_VERSION="2.5.1"
+ENV PYTORCH_INSTALL_TO="/usr/local"
+ENV Torch_DIR="/usr/local/libtorch"
+RUN [ "/bin/bash", "install-pytorch.sh"  ]
+
+ARG UBUNTU_VER
+
+COPY scripts/wasi-nn/install-openvino.sh .
+COPY scripts/wasi-nn/install-openvino-genai.sh .
+ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
+ENV OPENVINO_VERSION="2025.0.0"
+ENV OPENVINO_YEAR="2025"
+ENV OPENVINOGEN_VERSION="2025.0.0.0"
+ENV OPENVINOGEN_YEAR="2025.0"
+ENV OPENVINOGEN_DIRNAME="openvino_genai"
+RUN [ "/bin/bash", "install-openvino.sh" ]
+RUN [ "/bin/bash", "install-openvino-genai.sh" ]
+RUN [ "ls", "-al" ]
+RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bashrc" ]
+
+COPY scripts/wasi-nn/install-onnxruntime.sh .
+RUN [ "/bin/bash", "install-onnxruntime.sh" ]
+
+COPY scripts/wasi-nn/install-chattts.sh .
+RUN [ "/bin/bash", "install-chattts.sh" ]
+
+### cleanup
+FROM deps-all AS clean-apt
+
+RUN rm -f \
+    install-opencvmini.sh \
+    install-ffmpeg-v6.0.sh \
+    install-pytorch.sh \
+    install-openvino.sh \
+    install-onnxruntime.sh \
+    install-openvino-genai.sh \
+    install-chattts.sh
+
+RUN rm -rf /var/lib/apt/lists/*
