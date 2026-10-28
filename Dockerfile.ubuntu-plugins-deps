@@ -30,15 +30,15 @@ RUN apt-get install -y \
         libswresample-dev \
         libswscale-dev
 
-# FFmpeg 6.0 (ubuntu 20.04, 22.04)
+# FFmpeg 7.1.1 (ubuntu 20.04, 22.04)
 FROM base AS deps-20
 
 WORKDIR /usr/local
 
-COPY scripts/ffmpeg/install-ffmpeg-v6.0.sh .
-RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
-ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+COPY scripts/ffmpeg/install-ffmpeg-v7.1.1.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v7.1.1.sh" ]
+ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n7.1.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n7.1.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 FROM deps-20 AS deps-22
 
@@ -52,8 +52,8 @@ ENV OPENCV_VERSION="4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 
 COPY scripts/wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="2.5.1"
-ENV PYTORCH_INSTALL_TO="/usr/local"
+ENV PYTORCH_VERSION="2.12.1"
+ENV PYTORCH_INSTALL_TO="/usr/local/libtorch"
 ENV Torch_DIR="/usr/local/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh"  ]
 
@@ -75,6 +75,10 @@ RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bash
 COPY scripts/wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
+COPY scripts/wasi-nn/libpiper.patch .
+COPY scripts/wasi-nn/install-libpiper.sh .
+RUN [ "/bin/bash", "install-libpiper.sh" ]
+
 COPY scripts/wasi-nn/install-chattts.sh .
 RUN [ "/bin/bash", "install-chattts.sh" ]
 
@@ -83,11 +87,12 @@ FROM deps-all AS clean-apt
 
 RUN rm -f \
     install-opencvmini.sh \
-    install-ffmpeg-v6.0.sh \
+    install-ffmpeg-v7.1.1.sh \
     install-pytorch.sh \
     install-openvino.sh \
     install-onnxruntime.sh \
     install-openvino-genai.sh \
-    install-chattts.sh
+    install-chattts.sh \
+    install-libpiper.sh
 
 RUN rm -rf /var/lib/apt/lists/*
