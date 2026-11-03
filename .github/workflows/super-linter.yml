@@ -25,6 +25,7 @@ jobs:
         uses: super-linter/super-linter/slim@v9.0.0
         env:
           # super-linter configurations
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false
           MULTI_STATUS: false
           SUPPRESS_POSSUM: true
           VALIDATE_ALL_CODEBASE: false
