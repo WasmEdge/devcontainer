@@ -22,9 +22,10 @@ jobs:
           fetch-depth: 0
 
       - name: Run super-linter
-        uses: super-linter/super-linter/slim@v8.1.0
+        uses: super-linter/super-linter/slim@v9.0.0
         env:
           # super-linter configurations
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false
           MULTI_STATUS: false
           SUPPRESS_POSSUM: true
           VALIDATE_ALL_CODEBASE: false
