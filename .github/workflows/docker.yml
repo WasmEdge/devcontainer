@@ -1,0 +1,277 @@
+name: docker
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/docker.yml'
+      - 'Dockerfile.*'
+      - 'docker-bake.*.hcl'
+      - 'SHA256SUM.*'
+      - 'build-manylinux.sh'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - '.github/workflows/docker.yml'
+      - 'Dockerfile.*'
+      - 'docker-bake.*.hcl'
+      - 'SHA256SUM.*'
+      - 'build-manylinux.sh'
+      - 'scripts/**'
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */7 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  prep:
+    name: Prepare docker env
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+      docker_image: ${{ steps.prep.outputs.docker_image }}
+      created: ${{ steps.prep.outputs.created }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prepare docker env
+        id: prep
+        run: |
+          DOCKER_IMAGE=wasmedge/wasmedge
+          VERSION=noop
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+          VERSION=nightly
+          elif [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          elif [[ $GITHUB_REF == refs/heads/* ]]; then
+          VERSION=$(printf '%s\n' "${GITHUB_REF#refs/heads/}" | sed -r 's#/+#-#g')
+          if [ "${{ github.event.repository.default_branch }}" = "$VERSION" ]; then
+          VERSION=edge
+          fi
+          elif [[ $GITHUB_REF == refs/pull/* ]]; then
+          VERSION=pr-${{ github.event.number }}
+          fi
+          {
+            echo "version=$VERSION"
+            echo "docker_image=$DOCKER_IMAGE"
+            echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_OUTPUT"
+
+  paths-filter:
+    name: Run paths-filter
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    outputs: # Set outputs to true if not pull_request
+      ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
+      alpine-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.alpine-base || 'true' }}
+      manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
+      ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - if: ${{ github.event_name == 'pull_request' }}
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            ci-image-base:
+              - '.github/workflows/docker.yml'
+              - 'scripts/**'
+              - 'docker-bake.ci-image-base.hcl'
+              - 'Dockerfile.ci-image-base'
+            alpine-base:
+              - '.github/workflows/docker.yml'
+              - 'scripts/**'
+              - 'docker-bake.alpine-base.hcl'
+              - 'Dockerfile.alpine-base'
+            manylinux:
+              - '.github/workflows/docker.yml'
+              - 'scripts/**'
+              - 'docker-bake.manylinux.hcl'
+              - 'Dockerfile.manylinux**'
+              - 'SHA256SUM.manylinux*'
+              - 'scripts/**'
+            ubuntu:
+              - '.github/workflows/docker.yml'
+              - 'scripts/**'
+              - 'docker-bake.ubuntu.hcl'
+              - 'Dockerfile.ubuntu-**'
+              - 'scripts/**'
+
+  bake-base-images:
+    needs:
+      - prep
+      - paths-filter
+
+    name: CI image base
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # DO NOT skip the whole job to prevent the job from being silently omitted
+      - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
+        name: Bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: docker-bake.ci-image-base.hcl
+          push: false
+
+  build-alpine-base-images:
+    needs:
+      - prep
+      - paths-filter
+    # Only run if files changed or if it's a scheduled/merge build
+    if: ${{ needs.paths-filter.outputs.alpine-base == 'true' }}
+
+    name: Alpine Base (3.23)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: docker-bake.alpine-base.hcl
+          push: false
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+
+  build-ubuntu-images:
+    needs:
+      - prep
+      - paths-filter
+    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - targets: focal,jammy,noble,cuda
+            host_runner: ubuntu-latest
+          - targets: aarch64
+            host_runner: ubuntu-24.04-arm
+
+    name: Ubuntu
+    runs-on: ${{ matrix.host_runner }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: docker-bake.ubuntu.hcl
+          targets: ${{ matrix.targets }}
+          push: false
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+
+  build-manylinux-images:
+    needs:
+      - prep
+      - paths-filter
+    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: manylinux_2_28 x86_64
+            targets: x86_64,x86_64-plugins
+            host_runner: ubuntu-latest
+          - name: manylinux_2_28 aarch64
+            targets: aarch64,aarch64-plugins
+            host_runner: ubuntu-24.04-arm
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: docker-bake.manylinux.hcl
+          targets: ${{ matrix.targets }}
+          push: false
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}

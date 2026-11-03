@@ -6,18 +6,21 @@ WORKDIR /root
 ### deps for x86_64 ###
 FROM base AS deps-amd64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel
+  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel zstd
 
 COPY scripts/wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="2.5.1"
-ENV PYTORCH_INSTALL_TO="/root"
+ENV PYTORCH_INSTALL_TO="/root/libtorch"
 ENV Torch_DIR="/root/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh", "--disable-cxx11-abi" ]
+
+ENV PYTORCH_VERSION="2.12.1"
+ENV PYTORCH_INSTALL_TO="/root/libtorch-cxx11abi"
+RUN [ "/bin/bash", "install-pytorch.sh" ]
 
 ### deps for aarch64 ###
 FROM base AS deps-arm64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static
+  yum install -y wget unzip zlib-devel zlib-static zstd
 
 ### deps for all ###
 FROM deps-${TARGETARCH} AS final
@@ -30,15 +33,19 @@ COPY scripts/wasi-crypto/build-openssl.sh .
 ENV OpenSSL_DIR="/root/openssl-1.1.1n/openssl"
 RUN [ "/bin/bash", "build-openssl.sh" ]
 
-COPY scripts/ffmpeg/install-ffmpeg-v6.0.sh .
-RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
-ENV PKG_CONFIG_PATH=/root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+COPY scripts/ffmpeg/install-ffmpeg-v7.1.1.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v7.1.1.sh" ]
+ENV PKG_CONFIG_PATH=/root/FFmpeg-n7.1.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/root/FFmpeg-n7.1.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 ENV OPENVINO_VERSION="2025.0.0"
 ENV OPENVINO_YEAR="2025"
 
 COPY scripts/wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
+
+COPY scripts/wasi-nn/libpiper.patch .
+COPY scripts/wasi-nn/install-libpiper.sh .
+RUN [ "/bin/bash", "install-libpiper.sh" ]
 
 RUN yum clean all
