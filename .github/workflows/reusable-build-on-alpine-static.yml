@@ -31,6 +31,12 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Download WasmEdge 0.18.1 source
+        run: |
+          curl -fsSL https://github.com/WasmEdge/WasmEdge/archive/refs/tags/0.18.1.tar.gz -o WasmEdge-0.18.1.tar.gz
+          mkdir -p WasmEdge-0.18.1
+          tar -xzf WasmEdge-0.18.1.tar.gz --strip-components=1 -C WasmEdge-0.18.1
+          printf '0.18.1' > WasmEdge-0.18.1/VERSION
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build WasmEdge

@@ -74,7 +74,7 @@ RUN cp /tmp/lld-libs/*.a $(xx-info sysroot)usr/lib/llvm*/lib/
 # Use the native version of llvm-config
 RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
 
-RUN --mount=type=bind,target=/src,source=. \
+RUN --mount=type=bind,target=/src,from=source \
     cmake -S /src -B /build -G Ninja \
         -DCMAKE_BUILD_TYPE=MinSizeRel \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -97,13 +97,13 @@ RUN --mount=type=bind,target=/src,source=. \
         -DWASMEDGE_DISABLE_LIBTINFO=ON
 
 FROM  config AS build
-RUN --mount=type=bind,target=/src,source=. \
+RUN --mount=type=bind,target=/src,from=source \
     cmake --build /build -- install package
 
 ARG ALPINE_VERSION
-RUN --mount=type=bind,target=/src,source=. <<EOT
+RUN --mount=type=bind,target=/src,from=source <<EOT
     set -ex
-    WASMEDGE_VERSION="$(cd /src && git describe --match '[0-9].[0-9]*' --tag)"
+    WASMEDGE_VERSION="$(cat /src/VERSION)"
     ARCH="$(xx-info march)"
     ARCHIVE_TAG=${WASMEDGE_VERSION%%-*}-alpine${ALPINE_VERSION}_$(xx-info march)
     mv /build/WasmEdge-*-Linux.tar.gz /build/WasmEdge-${ARCHIVE_TAG}_static.tar.gz

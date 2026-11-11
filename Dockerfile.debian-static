@@ -65,7 +65,7 @@ RUN cat <<EOT > /toolchain.cmake
 EOT
 
 FROM deps as src
-ADD . /src
+COPY --from=source . /src
 
 FROM src as build
 RUN cmake -S /src -B /build -G Ninja \

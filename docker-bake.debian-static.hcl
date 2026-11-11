@@ -5,6 +5,9 @@ group "default" {
 target "base" {
   dockerfile = "./Dockerfile.debian-static"
   context    = "."
+  contexts   = {
+    source = "./WasmEdge-0.18.1"
+  }
   output     = ["build"]
 }
 

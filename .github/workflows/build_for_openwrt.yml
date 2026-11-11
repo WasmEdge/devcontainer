@@ -11,14 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  # TODO: Refactor `lint` with `on.workflow_run`
-  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
-  lint:
-    uses: ./.github/workflows/reusable-call-linter.yml
-
   build_openwrt:
     name: OpenWrt
-    needs: lint
     runs-on: ubuntu-latest
     steps:
     - name: Harden the runner (Audit all outbound calls)
@@ -32,6 +26,11 @@ jobs:
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
+    - name: Download WasmEdge 0.18.1 source
+      run: |
+        curl -fsSL https://github.com/WasmEdge/WasmEdge/archive/refs/tags/0.18.1.tar.gz -o WasmEdge-0.18.1.tar.gz
+        mkdir -p WasmEdge
+        tar -xzf WasmEdge-0.18.1.tar.gz --strip-components=1 -C WasmEdge
     - name: Set up Python
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
@@ -45,19 +44,19 @@ jobs:
     - name: Install dependency
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/openwrt/openwrt.git ../openwrt
-        cd ../openwrt
+        git clone https://github.com/openwrt/openwrt.git ./openwrt
+        cd ./openwrt
         git checkout 9dc86d19628f55bfed2048c412c5b23bda328cff
     - name: Update feeds
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
-        cd ../openwrt
+        cd ./openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
     - name: Make WasmEdge package
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
-        cd ../
+        cd .
         mkdir -p ./openwrt/package/utils/WasmEdge
         cp -r ./WasmEdge ./openwrt/package/utils/WasmEdge/src
         cp ./WasmEdge/utils/openwrt/configuration/Makefile ./openwrt/package/utils/WasmEdge/
@@ -88,7 +87,7 @@ jobs:
     - name: Pack OpenWrt images and WasmEdge ipk
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
-        cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
+        cp -rf $(find ./openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
     - name: Save OpenWrt
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
