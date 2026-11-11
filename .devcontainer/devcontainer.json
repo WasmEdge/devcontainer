@@ -1,0 +1,4 @@
+{
+  "name": "WasmEdge devcontainer development",
+  "image": "wasmedge/wasmedge:ci-image-base"
+}
