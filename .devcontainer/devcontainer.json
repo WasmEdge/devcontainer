@@ -1,0 +1,6 @@
+{
+  "name": "WasmEdge devcontainer development",
+  "build": {
+    "dockerfile": "Dockerfile"
+  }
+}
