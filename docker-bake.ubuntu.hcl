@@ -1,13 +1,13 @@
 group "default" {
   targets = [
-    "latest",
+    "cuda",
+    "final"
   ]
 }
 
 group "latest" {
   targets = [
     "base-2404-clang",
-    "plugins-2404-clang",
   ]
 }
 
@@ -35,12 +35,6 @@ group "noble" {
     "base-2404-gcc",
     "plugins-2404-clang",
     "plugins-2404-gcc",
-  ]
-}
-
-group "aarch64" {
-  targets = [
-    "base-2004-clang-aarch64",
   ]
 }
 
@@ -115,7 +109,7 @@ target "base" {
 }
 
 target "plugins" {
-  dockerfile = "Dockerfile.ubuntu-plugins-deps"
+  dockerfile = "./Dockerfile.ubuntu-plugins-deps"
   context    = "."
 
   matrix     = {
@@ -133,7 +127,7 @@ target "plugins" {
   }
 }
 
-target "all-versions" {
+target "final" {
   matrix     = {
     parent = ["base", "plugins"]
     ubuntu = ["20.04", "22.04", "24.04"]
