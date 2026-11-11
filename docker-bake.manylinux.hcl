@@ -4,7 +4,7 @@ target "base" {
 }
 
 target "plugins-base" {
-  dockerfile = "Dockerfile.manylinux_2_28-plugins-deps"
+  dockerfile = "./Dockerfile.manylinux_2_28-plugins-deps"
   context    = "."
 }
 
