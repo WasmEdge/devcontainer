@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
-          git config --global --add safe.directory $(pwd)
+          git config --global --add safe.directory "$(pwd)"
       - name: Download WasmEdge 0.18.1 source
         run: |
           curl -fsSL https://github.com/WasmEdge/WasmEdge/archive/refs/tags/0.18.1.tar.gz -o WasmEdge-0.18.1.tar.gz

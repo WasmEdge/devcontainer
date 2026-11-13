@@ -25,7 +25,7 @@ jobs:
         fetch-depth: 0
     - name: Ensure git safe directory
       run: |
-        git config --global --add safe.directory $(pwd)
+        git config --global --add safe.directory "$(pwd)"
     - name: Download WasmEdge 0.18.1 source
       run: |
         curl -fsSL https://github.com/WasmEdge/WasmEdge/archive/refs/tags/0.18.1.tar.gz -o WasmEdge-0.18.1.tar.gz
@@ -82,12 +82,12 @@ jobs:
         sed -i 's/^[ \t]*//g' ./.config
         make defconfig
         make download -j8 || make download -j1 V=s
-        rm -rf $(find ./dl/ -size -1024c)
-        make -j$(nproc) || make -j1 V=s
+        find ./dl/ -size -1024c -exec rm -rf {} +
+        make -j"$(nproc)" || make -j1 V=s
     - name: Pack OpenWrt images and WasmEdge ipk
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |
-        cp -rf $(find ./openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
+        find ./openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz" -exec cp -rf {} ./ \;
     - name: Save OpenWrt
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
