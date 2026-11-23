@@ -1,0 +1,71 @@
+name: devcontainer read-only build probe
+
+on:
+  push:
+    branches: [tmp/devcontainer-readonly-build-probe]
+
+permissions:
+  contents: read
+
+jobs:
+  devcontainer-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            target: aarch64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Validate Bake target overrides without publishing
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker buildx bake -f docker-bake.ci-image-base.hcl --print > original.json
+          docker buildx bake -f docker-bake.ci-image-base.hcl "$TARGET" --set "$TARGET.tags=devcontainer:probe" --set "$TARGET.output=type=docker" --print > overridden.json
+          python3 - <<'PY'
+          import json
+          import os
+          original = json.load(open('original.json'))['target']
+          assert original['x86_64']['tags'] == ['wasmedge/wasmedge:ci-image-base', 'wasmedge/wasmedge:ci-image-base_x86_64']
+          assert original['aarch64']['tags'] == ['wasmedge/wasmedge:ci-image-base_aarch64']
+          target = json.load(open('overridden.json'))['target'][os.environ['TARGET']]
+          assert target['tags'] == ['devcontainer:probe'], target
+          assert target['platforms'] == ['linux/' + os.environ['ARCH']], target
+          assert target['dockerfile'] == 'Dockerfile.ci-image-base', target
+          assert target['context'] == '.', target
+          print(json.dumps(target, indent=2))
+          PY
+      - name: Build native image without publishing
+        id: build
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          source: .
+          files: docker-bake.ci-image-base.hcl
+          targets: ${{ matrix.target }}
+          set: |
+            ${{ matrix.target }}.tags=devcontainer:probe
+            ${{ matrix.target }}.output=type=docker
+      - name: Check native architecture and Docker CLI
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          actual=$(docker image inspect devcontainer:probe --format '{{.Architecture}}')
+          test "$actual" = "$ARCH"
+          docker run --rm devcontainer:probe sh -ec 'uname -m; docker --version'
+      - name: Check image Buildx plugin
+        run: docker run --rm devcontainer:probe docker buildx version
+      - name: Check tiny build through host Docker socket
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          printf 'FROM scratch\nLABEL smoke=test\n' | docker run --rm -i -v /var/run/docker.sock:/var/run/docker.sock devcontainer:probe docker build -
