@@ -1,0 +1,28 @@
+name: devcontainer reusable output probe
+
+on:
+  push:
+    branches:
+      - tmp/devcontainer-reusable-output-probe
+
+permissions: {}
+
+jobs:
+  devcontainer-call:
+    uses: ./.github/workflows/devcontainer-output-probe-reusable.yml
+
+  devcontainer-consumer:
+    needs: devcontainer-call
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    env:
+      CALL_RESULT: ${{ needs.devcontainer-call.result }}
+      IMAGE_REF: ${{ needs.devcontainer-call.outputs.image_ref }}
+    steps:
+      - name: Verify output survives independent failure
+        shell: bash
+        run: |
+          echo "Reusable call result: $CALL_RESULT"
+          echo "Returned dummy output: $IMAGE_REF"
+          test "$CALL_RESULT" = failure
+          test "$IMAGE_REF" = dummy-output-no-registry-access

@@ -1,0 +1,25 @@
+name: devcontainer output probe reusable
+
+on:
+  workflow_call:
+    outputs:
+      image_ref:
+        value: ${{ jobs.devcontainer-ghcr.outputs.image_ref }}
+
+permissions: {}
+
+jobs:
+  devcontainer-dockerhub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate independent Docker Hub failure
+        run: exit 1
+
+  devcontainer-ghcr:
+    runs-on: ubuntu-latest
+    outputs:
+      image_ref: ${{ steps.output.outputs.image_ref }}
+    steps:
+      - name: Return dummy reference without registry access
+        id: output
+        run: echo 'image_ref=dummy-output-no-registry-access' >> "$GITHUB_OUTPUT"
