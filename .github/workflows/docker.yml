@@ -209,7 +209,8 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+      - devcontainer-ghcr
+    if: ${{ !cancelled() && needs.prep.result == 'success' && needs.paths-filter.result == 'success' && needs.paths-filter.outputs.ubuntu == 'true' && (needs.paths-filter.outputs.ci-image-base != 'true' || needs.devcontainer-ghcr.result == 'success' || needs.devcontainer-ghcr.result == 'skipped') }}
 
     strategy:
       fail-fast: false
@@ -220,8 +221,11 @@ jobs:
 
     name: Ubuntu
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     container:
-      image: wasmedge/wasmedge:ci-image-base
+      image: ${{ needs.devcontainer-ghcr.result == 'success' && needs.devcontainer-ghcr.outputs.image_ref || 'wasmedge/wasmedge:ci-image-base' }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -259,7 +263,8 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
+      - devcontainer-ghcr
+    if: ${{ !cancelled() && needs.prep.result == 'success' && needs.paths-filter.result == 'success' && needs.paths-filter.outputs.manylinux == 'true' && (needs.paths-filter.outputs.ci-image-base != 'true' || needs.devcontainer-ghcr.result == 'success' || needs.devcontainer-ghcr.result == 'skipped') }}
 
     strategy:
       fail-fast: false
@@ -278,8 +283,11 @@ jobs:
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
+    permissions:
+      contents: read
+      packages: read
     container:
-      image: ${{ matrix.host_container }}
+      image: ${{ needs.devcontainer-ghcr.result == 'success' && needs.devcontainer-ghcr.outputs.image_ref || matrix.host_container }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
