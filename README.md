@@ -19,4 +19,4 @@ are retained, but CI does not build them or OpenWrt images.
 | `SHA256SUM.*` | Checksums used by the manylinux image definitions. |
 | `build-manylinux.sh` | Legacy manylinux image build helper. |
 | `scripts/` | Dockerfile-consumed dependency installers, build helpers, test data helpers, and patches, grouped by dependency family. |
-| `.github/workflows/` | Consolidated image build/publication workflow (`docker.yml`) and repository lint workflow (`super-linter.yml`). |
+| `.github/workflows/` | Image orchestration (`docker.yml`) and repository lint workflow (`super-linter.yml`). |
