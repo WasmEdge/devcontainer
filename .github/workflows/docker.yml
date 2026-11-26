@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - '.github/workflows/docker.yml'
+      - '.github/workflows/devcontainer.yml'
       - 'Dockerfile.*'
       - 'docker-bake.*.hcl'
       - 'SHA256SUM.*'
@@ -94,6 +95,7 @@ jobs:
           filters: |
             ci-image-base:
               - '.github/workflows/docker.yml'
+              - '.github/workflows/devcontainer.yml'
               - 'docker-bake.ci-image-base.hcl'
               - 'Dockerfile.ci-image-base'
             alpine-base:
@@ -148,6 +150,18 @@ jobs:
         with:
           files: docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
+
+  devcontainer-ghcr:
+    needs: [prep, paths-filter]
+    name: devcontainer GHCR publication
+    permissions:
+      contents: read
+      packages: write
+    # Fork-origin PR package permissions remain a rollout decision; keep this
+    # path free of fork-specific handling until that behavior is verified.
+    uses: ./.github/workflows/devcontainer.yml
+    with:
+      candidate: ${{ github.event_name == 'pull_request' && needs.paths-filter.outputs.ci-image-base == 'true' }}
 
   build-alpine-base-images:
     needs:
